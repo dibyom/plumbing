@@ -1,5 +1,5 @@
 /*
- Copyright 2020 The Tekton Authors
+ Copyright 2021 The Tekton Authors
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ const (
 var _ triggersv1.InterceptorInterface = (*Interceptor)(nil)
 
 type Interceptor struct {
+
 }
 
 func (w Interceptor) Process(ctx context.Context, r *triggersv1.InterceptorRequest) *triggersv1.InterceptorResponse {
