@@ -12,6 +12,36 @@ import (
 )
 
 func TestInterceptor_Process(t *testing.T) {
+	prBody := `{"pr": "body-content"}`
+	ts := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Write([]byte(prBody))
+	}))
+	wantResponse := triggersv1.InterceptorResponse{
+		Extensions: map[string]interface{}{
+			"add_pr_body": map[string]interface{}{
+				"pull_request_body": map[string]interface{}{
+					"pr": "body-content",
+				},
+			},
+		},
+		Continue:   true,
+	}
+	i := Interceptor{}
+	req := triggersv1.InterceptorRequest{
+		Extensions: map[string]interface{}{
+			"add_pr_body": map[string]interface{}{
+				"pull_request_url": ts.URL,
+			},
+		},
+	}
+
+	got := i.Process(context.Background(), &req)
+	if diff := cmp.Diff(&wantResponse, got); diff != "" {
+		t.Fatalf("-want/+got: %s", diff)
+	}
+}
+
+func TestInterceptor_Process_Error(t *testing.T) {
 	for _, tc := range []struct{
 		name string
 		req triggersv1.InterceptorRequest
@@ -58,7 +88,7 @@ func TestInterceptor_Process(t *testing.T) {
 			Continue:   false,
 			Status:     triggersv1.Status{
 				Code: codes.FailedPrecondition,
-				Message: "no 'pull-request-url' found in the extensions",
+				Message: "no 'pull-request-url' found",
 			},
 		},
 	}, {
@@ -76,6 +106,23 @@ func TestInterceptor_Process(t *testing.T) {
 			Status:     triggersv1.Status{
 				Code: codes.FailedPrecondition,
 				Message: "'pull-request-url' found, but not a string",
+			},
+		},
+	}, {
+		name: "cannot fetch url",
+		req: triggersv1.InterceptorRequest{
+			Extensions: map[string]interface{}{
+				"add_pr_body": map[string]interface{}{
+					"pull_request_url": "bad_url",
+				},
+			},
+		},
+		want: triggersv1.InterceptorResponse{
+			Extensions: nil,
+			Continue:   false,
+			Status:     triggersv1.Status{
+				Code: codes.Internal, // TODO(dibyom): This should be a different error code
+				Message: `Get "bad_url": unsupported protocol scheme ""`,
 			},
 		},
 	}}{
