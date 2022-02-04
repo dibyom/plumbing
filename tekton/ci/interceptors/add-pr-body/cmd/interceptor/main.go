@@ -23,6 +23,7 @@ import (
 	"github.com/tektoncd/triggers/pkg/interceptors/server"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"knative.dev/pkg/logging"
@@ -35,6 +36,8 @@ const (
 	readTimeout  = 5 * time.Second
 	writeTimeout = 20 * time.Second
 	idleTimeout  = 60 * time.Second
+
+	authSecretEnvVar = "GITHUB_OAUTH_SECRET"
 )
 
 func main() {
@@ -45,7 +48,9 @@ func main() {
 	s := server.Server{
 		Logger: logger,
 	}
-	s.RegisterInterceptor("addPrBody", pkg.Interceptor{})
+	s.RegisterInterceptor("addPrBody", pkg.Interceptor{
+		AuthToken: getGitHubAuth(authSecretEnvVar),
+	})
 	mux := http.NewServeMux()
 	mux.Handle("/", &s)
 	mux.HandleFunc("/ready", handler)
@@ -69,4 +74,11 @@ func main() {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func getGitHubAuth(key string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return ""
 }

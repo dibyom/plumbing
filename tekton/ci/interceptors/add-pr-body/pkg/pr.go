@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"io/ioutil"
 	"net/http"
-	"os"
 )
 
 const (
@@ -37,7 +36,8 @@ const (
 var _ triggersv1.InterceptorInterface = (*Interceptor)(nil)
 
 type Interceptor struct {
-
+	// AuthToken is an OAuth token used to connect to the GitHub API
+	AuthToken string
 }
 
 func (w Interceptor) Process(ctx context.Context, r *triggersv1.InterceptorRequest) *triggersv1.InterceptorResponse {
@@ -48,7 +48,7 @@ func (w Interceptor) Process(ctx context.Context, r *triggersv1.InterceptorReque
 		return interceptors.Fail(codes.FailedPrecondition, err.Error())
 	}
 	// TODO: Refactor this into its own struct field?
-	prBody, err := getPrBody(prUrl, getGitHubAuth("GITHUB_OAUTH_SECRET"))
+	prBody, err := getPrBody(prUrl, w.AuthToken)
 	if err != nil {
 		// TODO: Refactor getPrBody to map errors better to error codes
 		return interceptors.Fail(codes.Internal, err.Error())
@@ -78,13 +78,6 @@ func getPrUrlFromExtension(extensions map[string]interface{}) (string, error) {
 		return "", errors.New("'pull-request-url' found, but not a string")
 	}
 	return prUrlString, nil
-}
-
-func getGitHubAuth(key string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return ""
 }
 
 func decodeBody(body []byte) (map[string]interface{}, error) {

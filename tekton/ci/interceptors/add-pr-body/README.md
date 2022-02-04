@@ -1,8 +1,72 @@
 # Add PR Body
 
-`add-pr-body` is a custom interceptor for Tekton Triggers that enriches the
-payload of an incoming request with the JSON representation of a pull request,
-as returned by the GitHub API.
+This folder contains two implementaions of the same interceptor that enriches the payload of an incoming request with 
+the JSON representation of a pull request as returned by the GitHub API.
+
+
+# Add PR Body Cluster Interceptor
+
+This implementation uses the ClusterInterceptor interface. It adds the PR body under the 
+`extensions.add-pr-body.pull-request-body` field.
+
+## Interface
+
+`add-pr-body` expects the URL to the PR representation to be included in the
+incoming Interceptor Request as follows:
+
+```json
+{
+  "body": "....",
+  "headers": "",
+  "extensions": {
+    "add-pr-body": {
+      "pull-request-url": "https://api.github.com/repos/tektoncd/plumbing/pulls/225"
+    },
+  },
+}
+```
+
+It returns the payload body as an extension:
+```json
+{
+  "continue": true,
+  "extensions": {
+    "add-pr-body": {
+      "pull-request-body": {
+        "url": "https://api.github.com/repos/tektoncd/plumbing/pulls/225",
+        "id": 372779052,
+        "node_id": "MDExOlB1bGxSZXF1ZXN0MzcyNzc5MDUy",
+        "html_url": "https://github.com/tektoncd/plumbing/pull/225",
+        ....
+      }
+    },
+  },
+}
+```
+
+## Example usage:
+
+A trigger in an event listener:
+
+```yaml
+- name: comment-trigger
+  interceptors:
+    - cel:
+        filter: >- // TODO: This can be part of the interceptor itself
+          body.action == 'created' &&
+          in('pull_request', body.issue) &&
+          && body.issue.state == 'open' &&
+          body.comment.body.matches('^/test($| [^ ]*$)')
+        overlays:
+        - key: add-pr-body.pull-request-url
+          expression: "body.issue.pull_request.url"
+
+```
+
+# Add PR Body Webhook Interceptor
+
+This implementation uses the Webhook Interceptor interface. As such, it directly modifes the event body with the PR payload
+under the `extensions.add-pr-body.pull-request-body` field.
 
 ## Interface
 
@@ -69,6 +133,7 @@ A trigger in an event listener:
         overlays:
         - key: add-pr-body.pull-request-url
           expression: "body.issue.pull_request.url"
+// TODO: Complete this example
 ```
 
 ## Installation
