@@ -1,15 +1,14 @@
 # Add PR Body
 
-This folder contains two implementaions of the same interceptor that enriches the payload of an incoming request with 
+This folder contains two implementaions of the same interceptor that enriches the payload of an incoming request with
 the JSON representation of a pull request as returned by the GitHub API.
 
+## Add PR Body Cluster Interceptor
 
-# Add PR Body Cluster Interceptor
-
-This implementation uses the ClusterInterceptor interface. It adds the PR body under the 
+This implementation uses the ClusterInterceptor interface. It adds the PR body under the
 `extensions.add-pr-body.pull-request-body` field.
 
-## Interface
+### Cluster Interceptor Interface
 
 `add-pr-body` expects the URL to the PR representation to be included in the
 incoming Interceptor Request as follows:
@@ -27,6 +26,7 @@ incoming Interceptor Request as follows:
 ```
 
 It returns the payload body as an extension:
+
 ```json
 {
   "continue": true,
@@ -44,7 +44,7 @@ It returns the payload body as an extension:
 }
 ```
 
-## Example usage:
+### Example usage
 
 A trigger in an event listener:
 
@@ -63,12 +63,43 @@ A trigger in an event listener:
 
 ```
 
-# Add PR Body Webhook Interceptor
+### Installation
+The interceptor is installed via `ko`:
+
+```bash
+export KO_DOCKER_REPO=gcr.io/tekton-releases/dogfooding
+ko apply -P -f tekton/ci/interceptors/add-pr-body/config/cluster-interceptor
+```
+
+### GitHub Enterprise
+
+The interceptor needs authentication if you are using GitHub Enterprise.
+In order to authenticate to GitHub Enterprise API, you need to set `GITHUB_OAUTH_SECRET` environment variable.
+
+Add GitHub OAuth secret to the deployment in `config/cluster-interceptor/interceptor-deployment.yaml` like below.
+
+```yaml
+    spec:
+      serviceAccountName: add-pr-body-bot
+      containers:
+        - name: add-pr-body-interceptor
+          image: github.com/tektoncd/plumbing/tekton/ci/interceptors/add-pr-body/cmd/add-pr-body
+          env:
+            - name: GITHUB_OAUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: github-secret
+                  key: oauth
+```
+
+
+
+## Add PR Body Webhook Interceptor
 
 This implementation uses the Webhook Interceptor interface. As such, it directly modifes the event body with the PR payload
 under the `extensions.add-pr-body.pull-request-body` field.
 
-## Interface
+### Webhook Interceptor Interface
 
 `add-pr-body` expects the URL to the PR representation to be included in the
 incoming JSON as follows:
@@ -111,7 +142,7 @@ It returns the original JSON payload untouched, with the addition of the PR:
 
 HTTP Headers are left untouched.
 
-## Example usage:
+### Example usage
 
 A trigger in an event listener:
 
@@ -136,22 +167,24 @@ A trigger in an event listener:
 // TODO: Complete this example
 ```
 
-## Installation
+### Webhook Interceptor Installation
 
 The interceptor is installed via `ko`:
-```
+
+```bash
 export KO_DOCKER_REPO=gcr.io/tekton-releases/dogfooding
 ko apply -P -f tekton/ci/interceptors/add-pr-body/config/
 ```
 
 Eventually it should be included in nightly releases and installed from there.
 
-## GitHub Enterprise
+### GitHub Enterprise
 
-The interceptor needs authentication if you are using GitHub Enterprise. 
+The interceptor needs authentication if you are using GitHub Enterprise.
 In order to authenticate to GitHub Enterprise API, you need to set `GITHUB_OAUTH_SECRET` environment variable.
 
-Add GitHub OAuth secret to the deployment like below.
+Add GitHub OAuth secret to the deployment in `config/add-pr-body.yaml` like below.
+
 ```yaml
     spec:
       serviceAccountName: add-pr-body-bot
